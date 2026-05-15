@@ -526,8 +526,6 @@ main { flex: 1; position: relative; overflow: hidden; }
   font-weight: 500;
 }
 
-.filter-cities { padding-left: 0; }
-
 .filter-chip {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -546,7 +544,6 @@ main { flex: 1; position: relative; overflow: hidden; }
   color: #fff;
   font-weight: 600;
 }
-.city-chip { font-size: 0.78rem; padding: 3px 10px; }
 
 .filter-reset {
   background: transparent;

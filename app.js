@@ -84,7 +84,6 @@ let activeDay = loadDaySetting();
 
 // 필터 상태
 let selectedProvinces = new Set();
-let selectedCities    = new Set();
 
 // ── LocalStorage ─────────────────────────────────────────────
 function loadLocations() {
@@ -115,14 +114,12 @@ function loadFilters() {
     if (raw) {
       const f = JSON.parse(raw);
       selectedProvinces = new Set(f.provinces || []);
-      selectedCities    = new Set(f.cities    || []);
     }
   } catch {}
 }
 function saveFilters() {
   localStorage.setItem('css_filters', JSON.stringify({
     provinces: [...selectedProvinces],
-    cities:    [...selectedCities],
   }));
 }
 
@@ -300,14 +297,6 @@ function renderDayToggle() {
 function getProvinces() {
   return [...new Set(locations.map(l => l.province || '기타'))].sort();
 }
-function getCitiesForProvinces(provinces) {
-  if (!provinces.size) return [];
-  return [...new Set(
-    locations
-      .filter(l => provinces.has(l.province))
-      .map(l => `${l.province}||${l.city}`)
-  )].sort((a, b) => a.split('||')[1].localeCompare(b.split('||')[1], 'ko'));
-}
 
 function renderFilters() {
   const container = document.getElementById('filterArea');
@@ -318,59 +307,30 @@ function renderFilters() {
     return `<button class="filter-chip ${active ? 'active' : ''}" data-type="province" data-value="${esc(p)}">${esc(p)}</button>`;
   }).join('');
 
-  let cityChipsHTML = '';
-  if (selectedProvinces.size) {
-    const cities = getCitiesForProvinces(selectedProvinces);
-    cityChipsHTML = `
-      <div class="filter-row filter-cities">
-        <span class="filter-label">시·군·구</span>
-        ${cities.map(key => {
-          const city = key.split('||')[1];
-          const active = selectedCities.has(key);
-          return `<button class="filter-chip city-chip ${active ? 'active' : ''}" data-type="city" data-value="${esc(key)}">${esc(city)}</button>`;
-        }).join('')}
-      </div>`;
-  }
-
   container.innerHTML = `
     <div class="filter-row">
       <span class="filter-label">도·광역시</span>
       ${provinceChips}
-      ${selectedProvinces.size || selectedCities.size
-        ? `<button class="filter-reset" id="filterResetBtn">전체 보기</button>` : ''}
-    </div>
-    ${cityChipsHTML}`;
+      ${selectedProvinces.size ? `<button class="filter-reset" id="filterResetBtn">전체 보기</button>` : ''}
+    </div>`;
 
   container.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      const { type, value } = chip.dataset;
-      if (type === 'province') {
-        if (selectedProvinces.has(value)) {
-          selectedProvinces.delete(value);
-          [...selectedCities].forEach(c => { if (c.startsWith(value + '||')) selectedCities.delete(c); });
-        } else {
-          selectedProvinces.add(value);
-        }
-      } else if (type === 'city') {
-        if (selectedCities.has(value)) selectedCities.delete(value);
-        else selectedCities.add(value);
-      }
+      const { value } = chip.dataset;
+      if (selectedProvinces.has(value)) selectedProvinces.delete(value);
+      else selectedProvinces.add(value);
       saveFilters();
       renderFilters();
       renderList();
     });
   });
 
-  const resetBtn = document.getElementById('filterResetBtn');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      selectedProvinces.clear();
-      selectedCities.clear();
-      saveFilters();
-      renderFilters();
-      renderList();
-    });
-  }
+  document.getElementById('filterResetBtn')?.addEventListener('click', () => {
+    selectedProvinces.clear();
+    saveFilters();
+    renderFilters();
+    renderList();
+  });
 }
 
 // ── 필터 적용 + 정렬 ─────────────────────────────────────────
@@ -378,13 +338,7 @@ function getFilteredSortedLocations() {
   let list = [...locations];
 
   if (selectedProvinces.size) {
-    list = list.filter(loc => {
-      if (!selectedProvinces.has(loc.province)) return false;
-      if (!selectedCities.size) return true;
-      const provCities = [...selectedCities].filter(c => c.startsWith(loc.province + '||'));
-      if (!provCities.length) return true;
-      return selectedCities.has(`${loc.province}||${loc.city}`);
-    });
+    list = list.filter(loc => selectedProvinces.has(loc.province));
   }
 
   list.sort((a, b) => {
@@ -429,7 +383,7 @@ function buildCardHTML(loc, rank) {
   const w = getWeather(loc.id);
   const r = getResult(loc.id);
   const regionBadge = loc.province
-    ? `<span class="region-badge">${esc(loc.province)} ${esc(loc.city)}</span>`
+    ? `<span class="region-badge">${esc(loc.province)}</span>`
     : '';
   const rankBadge = rank ? `<span class="rank-badge">#${rank}</span>` : '';
 
@@ -532,8 +486,7 @@ function initMap() {
     const name     = prompt('새 지점 이름을 입력하세요:');
     if (!name) return;
     const province = prompt('도·광역시를 입력하세요:') || '';
-    const city     = prompt('시·군·구를 입력하세요:')   || '';
-    addLocation(name, e.latlng.lat, e.latlng.lng, province, city);
+    addLocation(name, e.latlng.lat, e.latlng.lng, province);
   });
 }
 
@@ -571,7 +524,7 @@ function buildPopup(loc) {
   const r = getResult(loc.id);
   const prob  = r ? r.probability : '?';
   const grade = r ? getGrade(r.probability) : { label: '—', cls: 'very-low' };
-  const region = loc.province ? `${loc.province} ${loc.city}` : '';
+  const region = loc.province || '';
   const dayLabel = activeDay === 'tomorrow' ? '내일 새벽' : '오늘 새벽';
   return `
     <div class="popup-title">${esc(loc.name)} ${mapLinksHTML(loc)}</div>
@@ -595,8 +548,8 @@ function removeMapMarker(id) {
 }
 
 // ── 지점 CRUD ─────────────────────────────────────────────────
-function addLocation(name, lat, lng, province = '', city = '') {
-  const loc = { id: nextId++, name: name.trim(), lat, lng, province, city, group: '사용자' };
+function addLocation(name, lat, lng, province = '') {
+  const loc = { id: nextId++, name: name.trim(), lat, lng, province, group: '사용자' };
   locations.push(loc);
   saveLocations();
   addMapMarker(loc);
@@ -643,7 +596,6 @@ function openEditModal(id) {
         <input id="editLng"    type="number" step="0.0001" value="${loc.lng}" placeholder="경도" />
       </div>
       <input id="editProvince" type="text"   value="${esc(loc.province||'')}" placeholder="도·광역시" />
-      <input id="editCity"     type="text"   value="${esc(loc.city||'')}"     placeholder="시·군·구" />
       <div class="edit-form-btns">
         <button class="btn-cancel" id="editCancelBtn">취소</button>
         <button class="btn-primary btn-save" id="editSaveBtn">저장</button>
@@ -658,9 +610,8 @@ function openEditModal(id) {
     const lat      = parseFloat(document.getElementById('editLat').value);
     const lng      = parseFloat(document.getElementById('editLng').value);
     const province = document.getElementById('editProvince').value.trim();
-    const city     = document.getElementById('editCity').value.trim();
     if (!name || isNaN(lat) || isNaN(lng)) { showToast('입력값을 확인해 주세요.'); return; }
-    Object.assign(loc, { name, lat, lng, province, city });
+    Object.assign(loc, { name, lat, lng, province });
     saveLocations();
     fetchWeather(lat, lng).then(both => {
       weatherMap.today[id]    = both.today;
@@ -774,13 +725,12 @@ function bindAddLocationBtn() {
     const lat      = parseFloat(document.getElementById('newLat').value);
     const lng      = parseFloat(document.getElementById('newLng').value);
     const province = document.getElementById('newProvince').value.trim();
-    const city     = document.getElementById('newCity').value.trim();
     if (!name)                   { showToast('지점 이름을 입력해 주세요.'); return; }
     if (isNaN(lat)||isNaN(lng))  { showToast('위도/경도를 올바르게 입력해 주세요.'); return; }
     if (lat<-90||lat>90)         { showToast('위도는 -90 ~ 90 범위여야 합니다.'); return; }
     if (lng<-180||lng>180)       { showToast('경도는 -180 ~ 180 범위여야 합니다.'); return; }
-    addLocation(name, lat, lng, province, city);
-    ['newName','newLat','newLng','newProvince','newCity'].forEach(id => {
+    addLocation(name, lat, lng, province);
+    ['newName','newLat','newLng','newProvince'].forEach(id => {
       document.getElementById(id).value = '';
     });
   });

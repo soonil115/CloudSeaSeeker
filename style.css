@@ -68,22 +68,7 @@ nav {
 .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
 .nav-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
-.edit-mode-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.edit-mode-btn.active {
-  background: #f0883e22;
-  border-color: var(--high);
-  color: var(--high);
-}
+.edit-mode-btn { display: none; }
 
 /* ── Main / Views ── */
 main { flex: 1; position: relative; overflow: hidden; }

@@ -596,6 +596,71 @@ main { flex: 1; position: relative; overflow: hidden; }
   font-size: 0.95rem;
 }
 
+/* ── Sunrise Timeline ── */
+.sunrise-section {
+  margin: 10px 0 6px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.sunrise-header {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.sunrise-header strong {
+  color: #f0a050;
+  font-size: 0.88rem;
+}
+
+.hourly-timeline {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hourly-timeline::-webkit-scrollbar { display: none; }
+
+.hour-slot {
+  flex: 1;
+  min-width: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  background: var(--surface2);
+  transition: background 0.15s;
+}
+
+.hour-slot.is-sunrise {
+  background: #f0a05018;
+  border: 1px solid #f0a05055;
+}
+
+.hs-time {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.hour-slot.is-sunrise .hs-time {
+  color: #f0a050;
+  font-weight: 600;
+}
+
+.hs-icon { font-size: 1rem; line-height: 1; }
+
+.hs-temp {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   header { padding: 10px 14px; gap: 10px; }

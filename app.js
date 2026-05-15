@@ -113,14 +113,28 @@ function saveFilters() {
   }));
 }
 
+// ── WMO 날씨 코드 → 아이콘·라벨 ─────────────────────────────
+function weatherIcon(code) {
+  if (code == null)  return { icon: '—',  label: '—' };
+  if (code === 0)    return { icon: '☀️', label: '맑음' };
+  if (code <= 2)     return { icon: '🌤️', label: '구름조금' };
+  if (code === 3)    return { icon: '☁️', label: '흐림' };
+  if (code <= 48)    return { icon: '🌫️', label: '안개' };
+  if (code <= 55)    return { icon: '🌦️', label: '이슬비' };
+  if (code <= 65)    return { icon: '🌧️', label: '비' };
+  if (code <= 77)    return { icon: '🌨️', label: '눈' };
+  if (code <= 82)    return { icon: '🌧️', label: '소나기' };
+  if (code <= 94)    return { icon: '🌧️', label: '비' };
+  return                  { icon: '⛈️', label: '천둥번개' };
+}
+
 // ── Weather API (Open-Meteo 시간별) ──────────────────────────
 async function fetchWeather(lat, lng) {
-  // forecast_days=2 → 오늘 + 내일 48시간 시간별 데이터
   const url =
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lng}` +
-    `&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,cloud_cover` +
-    `&daily=temperature_2m_max,temperature_2m_min` +
+    `&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,cloud_cover,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,sunrise` +
     `&wind_speed_unit=ms` +
     `&timezone=Asia%2FSeoul` +
     `&forecast_days=2`;
@@ -128,16 +142,36 @@ async function fetchWeather(lat, lng) {
   const res  = await fetch(url);
   const data = await res.json();
 
-  // 새벽 운해 최적 시간대: 05시~07시
-  // 오늘 → indices 5,6,7  /  내일 → indices 29,30,31
   const avg = (arr, idxs) => idxs.reduce((s, i) => s + (arr[i] ?? 0), 0) / idxs.length;
-
   const todayIdx    = [5, 6, 7];
   const tomorrowIdx = [29, 30, 31];
   const h = data.hourly;
   const d = data.daily;
-
   const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+  // 일출 기준 ±시간대 슬롯 생성 (일출 1시간 전부터 5시간, 총 6슬롯)
+  function sunriseWindow(sunriseStr, dayOffset) {
+    const timePart = (sunriseStr || '').split('T')[1] || '06:00';
+    const [srHStr, srMStr] = timePart.split(':');
+    const srHour   = parseInt(srHStr, 10) || 6;
+    const srMinute = parseInt(srMStr, 10) || 0;
+    const startH   = srHour - 1; // 1시간 전부터
+    const slots    = [];
+    for (let i = 0; i < 6; i++) {
+      const h_val = startH + i;
+      const idx   = dayOffset * 24 + h_val;
+      slots.push({
+        time:      `${String(h_val).padStart(2,'0')}:00`,
+        temp:      h.temperature_2m[idx],
+        code:      h.weather_code[idx],
+        isSunrise: i === 1, // 두 번째 슬롯이 일출 시각이 속한 시간
+      });
+    }
+    return {
+      time:  `${String(srHour).padStart(2,'0')}:${String(srMinute).padStart(2,'0')}`,
+      slots,
+    };
+  }
 
   return {
     today: {
@@ -148,6 +182,7 @@ async function fetchWeather(lat, lng) {
       cloudCover:       avg(h.cloud_cover,           todayIdx),
       tempMax:          d.temperature_2m_max[0],
       tempMin:          d.temperature_2m_min[0],
+      sunrise:          sunriseWindow(d.sunrise[0], 0),
       fetchedAt:        `오늘 새벽 05–07시 예보 (조회: ${now})`,
     },
     tomorrow: {
@@ -158,6 +193,7 @@ async function fetchWeather(lat, lng) {
       cloudCover:       avg(h.cloud_cover,           tomorrowIdx),
       tempMax:          d.temperature_2m_max[1],
       tempMin:          d.temperature_2m_min[1],
+      sunrise:          sunriseWindow(d.sunrise[1], 1),
       fetchedAt:        `내일 새벽 05–07시 예보 (조회: ${now})`,
     },
   };
@@ -376,6 +412,27 @@ function buildCardHTML(loc, rank) {
   }
 
   const grade = getGrade(r.probability);
+
+  // 일출 타임라인 HTML
+  const sr = w.sunrise;
+  const timelineHTML = sr ? (() => {
+    const slots = sr.slots.map(s => {
+      const wi = weatherIcon(s.code);
+      const tempStr = s.temp != null ? `${s.temp.toFixed(0)}°` : '—';
+      return `
+        <div class="hour-slot${s.isSunrise ? ' is-sunrise' : ''}">
+          <span class="hs-time">${s.isSunrise ? '🌅' : ''}${s.time}</span>
+          <span class="hs-icon">${wi.icon}</span>
+          <span class="hs-temp">${tempStr}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="sunrise-section">
+        <div class="sunrise-header">일출 <strong>${sr.time}</strong></div>
+        <div class="hourly-timeline">${slots}</div>
+      </div>`;
+  })() : '';
+
   return `
     <div class="card-body-click">
       <div class="card-header">
@@ -387,8 +444,8 @@ function buildCardHTML(loc, rank) {
         </div>
         <div class="probability-ring ring-${grade.cls}">${ringHTML(r.probability)}</div>
       </div>
+      ${timelineHTML}
       <div class="card-weather">
-        <span class="weather-chip">🌡️ ${w.temperature.toFixed(1)}°C</span>
         <span class="weather-chip">💧 ${w.relativeHumidity.toFixed(0)}%</span>
         <span class="weather-chip">💨 ${w.windSpeed.toFixed(1)} m/s</span>
         <span class="weather-chip">🌙 운량 ${w.cloudCover.toFixed(0)}%</span>

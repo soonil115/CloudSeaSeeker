@@ -130,17 +130,43 @@ function weatherIcon(code) {
 
 // ── Weather API (Open-Meteo 시간별) ──────────────────────────
 async function fetchWeather(lat, lng) {
-  const url =
+  const base =
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lng}` +
-    `&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,cloud_cover,weather_code` +
-    `&daily=temperature_2m_max,temperature_2m_min,sunrise` +
-    `&wind_speed_unit=ms` +
-    `&timezone=Asia%2FSeoul` +
-    `&forecast_days=2`;
+    `&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=2`;
 
-  const res  = await fetch(url);
-  const data = await res.json();
+  const coreParams =
+    `&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,cloud_cover` +
+    `&daily=temperature_2m_max,temperature_2m_min,sunrise`;
+
+  const fullParams =
+    `&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,cloud_cover,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,sunrise`;
+
+  async function doFetch(url, timeoutMs) {
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timer);
+      return { data: await res.json(), timedOut: false };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') return { data: null, timedOut: true };
+      throw e;
+    }
+  }
+
+  // 2초 안에 전체 데이터(weather_code 포함) 시도
+  let { data, timedOut } = await doFetch(base + fullParams, 2000);
+  const hasWeatherCode = !timedOut;
+
+  // 타임아웃이면 weather_code 없이 재시도 (안개 확률 계산용 최소 데이터)
+  if (timedOut) {
+    const retry = await doFetch(base + coreParams, 8000);
+    data = retry.data;
+    if (!data) throw new Error('fetch failed');
+  }
 
   const avg = (arr, idxs) => idxs.reduce((s, i) => s + (arr[i] ?? 0), 0) / idxs.length;
   const todayIdx    = [5, 6, 7];
@@ -149,27 +175,26 @@ async function fetchWeather(lat, lng) {
   const d = data.daily;
   const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
-  // 일출 기준 ±시간대 슬롯 생성 (일출 1시간 전부터 5시간, 총 6슬롯)
   function sunriseWindow(sunriseStr, dayOffset) {
     const timePart = (sunriseStr || '').split('T')[1] || '06:00';
     const [srHStr, srMStr] = timePart.split(':');
     const srHour   = parseInt(srHStr, 10) || 6;
     const srMinute = parseInt(srMStr, 10) || 0;
-    const startH   = srHour - 1; // 1시간 전부터
+    const startH   = srHour - 1;
     const slots    = [];
     for (let i = 0; i < 6; i++) {
-      const h_val = startH + i;
-      const idx   = dayOffset * 24 + h_val;
+      const hVal = startH + i;
+      const idx  = dayOffset * 24 + hVal;
       slots.push({
-        time:      `${String(h_val).padStart(2,'0')}:00`,
+        time:      `${String(hVal).padStart(2,'0')}:00`,
         temp:      h.temperature_2m[idx],
-        code:      h.weather_code[idx],
-        isSunrise: i === 1, // 두 번째 슬롯이 일출 시각이 속한 시간
+        code:      hasWeatherCode ? h.weather_code[idx] : null,
+        isSunrise: i === 1,
       });
     }
     return {
       time:  `${String(srHour).padStart(2,'0')}:${String(srMinute).padStart(2,'0')}`,
-      slots,
+      slots: hasWeatherCode ? slots : null, // 타임아웃이면 슬롯 null
     };
   }
 
@@ -413,9 +438,9 @@ function buildCardHTML(loc, rank) {
 
   const grade = getGrade(r.probability);
 
-  // 일출 타임라인 HTML
+  // 일출 타임라인 HTML (weather_code 2초 타임아웃 시 slots=null → 미표시)
   const sr = w.sunrise;
-  const timelineHTML = sr ? (() => {
+  const timelineHTML = (sr && sr.slots) ? (() => {
     const slots = sr.slots.map(s => {
       const wi = weatherIcon(s.code);
       const tempStr = s.temp != null ? `${s.temp.toFixed(0)}°` : '—';
@@ -431,7 +456,7 @@ function buildCardHTML(loc, rank) {
         <div class="sunrise-header">일출 <strong>${sr.time}</strong></div>
         <div class="hourly-timeline">${slots}</div>
       </div>`;
-  })() : '';
+  })() : (sr ? `<div class="sunrise-section"><div class="sunrise-header">일출 <strong>${sr.time}</strong></div></div>` : '');
 
   return `
     <div class="card-body-click">

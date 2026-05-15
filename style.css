@@ -596,6 +596,34 @@ main { flex: 1; position: relative; overflow: hidden; }
   font-size: 0.95rem;
 }
 
+/* ── Map Links ── */
+.map-links {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.map-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-decoration: none;
+  line-height: 1;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.map-link:hover { opacity: 0.8; transform: scale(1.15); }
+.map-naver  { background: #03c75a; color: #fff; }
+.map-kakao  { background: #fee500; color: #3c1e1e; }
+.map-google { background: #4285f4; color: #fff; }
+
+/* Leaflet 팝업 안에서 map-links 크기 조정 */
+.leaflet-popup-content .map-links { margin-left: 4px; }
+
 /* ── Sunrise Timeline ── */
 .sunrise-section {
   margin: 10px 0 6px;

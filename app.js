@@ -1,6 +1,19 @@
 /* app.js — CloudSeaSeeker 메인 애플리케이션 */
 
-// ── 기본 지점 데이터 — 모두 산 정상 좌표 기준 ────────────────────
+// ── 지도 링크 헬퍼 ────────────────────────────────────────────
+function mapLinksHTML(loc) {
+  const { lat, lng, name } = loc;
+  const q   = encodeURIComponent(name);
+  const nav  = `https://map.naver.com/v5/search/${q}?c=${lng},${lat},15,0,0,0,dh`;
+  const kak  = `https://map.kakao.com/link/map/${q},${lat},${lng}`;
+  const goo  = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
+  return `<span class="map-links">` +
+    `<a class="map-link map-naver" href="${nav}" target="_blank" rel="noopener" title="네이버 지도">N</a>` +
+    `<a class="map-link map-kakao" href="${kak}" target="_blank" rel="noopener" title="카카오맵">K</a>` +
+    `<a class="map-link map-google" href="${goo}" target="_blank" rel="noopener" title="구글 지도">G</a>` +
+  `</span>`;
+}
+
 const DEFAULT_LOCATIONS = [
   // ── 서울 근교 운해 명소 25곳 ──
   { id:  1, name: '명지산',        lat: 37.9281, lng: 127.5058, province: '경기도',     city: '가평군',   group: '서울근교' },
@@ -425,7 +438,7 @@ function buildCardHTML(loc, rank) {
       <div class="card-body-click">
         <div class="card-header">
           <div>
-            <div class="card-name-row">${rankBadge}<span class="card-name">${esc(loc.name)}</span></div>
+            <div class="card-name-row">${rankBadge}<span class="card-name">${esc(loc.name)}</span>${mapLinksHTML(loc)}</div>
             ${regionBadge}
             <div class="card-coords">${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E</div>
           </div>
@@ -462,7 +475,7 @@ function buildCardHTML(loc, rank) {
     <div class="card-body-click">
       <div class="card-header">
         <div>
-          <div class="card-name-row">${rankBadge}<span class="card-name">${esc(loc.name)}</span></div>
+          <div class="card-name-row">${rankBadge}<span class="card-name">${esc(loc.name)}</span>${mapLinksHTML(loc)}</div>
           ${regionBadge}
           <div class="card-coords">${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E</div>
           <span class="card-grade grade-${grade.cls}">${grade.label}</span>
@@ -561,7 +574,7 @@ function buildPopup(loc) {
   const region = loc.province ? `${loc.province} ${loc.city}` : '';
   const dayLabel = activeDay === 'tomorrow' ? '내일 새벽' : '오늘 새벽';
   return `
-    <div class="popup-title">${esc(loc.name)}</div>
+    <div class="popup-title">${esc(loc.name)} ${mapLinksHTML(loc)}</div>
     ${region ? `<div style="font-size:0.78rem;color:#8b949e;margin-bottom:4px">${esc(region)}</div>` : ''}
     <div style="font-size:0.75rem;color:#8b949e;margin-bottom:2px">${dayLabel} 기준</div>
     <div class="popup-prob prob-${grade.cls}">${prob}%</div>
@@ -694,7 +707,7 @@ function openDetail(id) {
   }).join('');
 
   document.getElementById('modalContent').innerHTML = `
-    <div class="modal-title">${esc(loc.name)}</div>
+    <div class="modal-title">${esc(loc.name)} ${mapLinksHTML(loc)}</div>
     <div class="modal-coords">
       ${region ? `<span class="region-badge" style="margin-right:8px">${esc(region)}</span>` : ''}
       ${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E

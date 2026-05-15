@@ -70,6 +70,36 @@ nav {
 
 .edit-mode-btn { display: none; }
 
+/* ── Designer Credit ── */
+.designer-credit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.designer-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.designer-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.designer-credit:hover .designer-avatar {
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+.designer-credit:hover .designer-label {
+  color: var(--accent);
+}
+
 /* ── Main / Views ── */
 main { flex: 1; position: relative; overflow: hidden; }
 

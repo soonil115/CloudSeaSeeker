@@ -97,8 +97,51 @@ main { flex: 1; position: relative; overflow: hidden; }
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .view-header h2 { font-size: 1.1rem; color: var(--text-muted); font-weight: 500; }
+.view-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ── Day Toggle ── */
+.day-toggle {
+  display: flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px;
+  gap: 2px;
+}
+.day-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 5px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.day-btn:hover { color: var(--text); }
+.day-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ── Detail Day Label ── */
+.day-label-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: #58a6ff18;
+  border: 1px solid #58a6ff44;
+  border-radius: 6px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+}
 
 .location-grid {
   display: grid;

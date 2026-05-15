@@ -27,7 +27,10 @@
   <section id="view-list" class="view active">
     <div class="view-header">
       <h2>관측 지점 목록</h2>
-      <button id="refreshBtn" class="btn-primary">🔄 날씨 업데이트</button>
+      <div class="view-header-right">
+        <div id="dayToggle" class="day-toggle"></div>
+        <button id="refreshBtn" class="btn-primary">🔄 날씨 업데이트</button>
+      </div>
     </div>
     <div id="filterArea" class="filter-area"></div>
     <div id="locationList" class="location-grid"></div>
